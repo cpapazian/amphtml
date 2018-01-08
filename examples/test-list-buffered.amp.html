@@ -1,0 +1,77 @@
+<!--
+  ## Introduction
+
+  The [`amp-list`](https://www.ampproject.org/docs/reference/components/amp-list) component fetches dynamic content from a CORS JSON endpoint and renders it using a supplied template. This is good for embedding a dynamic list of related articles.
+-->
+<!-- -->
+<!doctype html>
+<html ⚡>
+<head>
+  <meta charset="utf-8">
+  <script async src="https://cdn.ampproject.org/v0.js"></script>
+  <!-- ## Setup -->
+  <!-- Import the `amp-bind` component ... -->
+  <script async custom-element="amp-bind" src="https://cdn.ampproject.org/v0/amp-bind-0.1.js"></script>
+  <!-- Import the `amp-list` component ... -->
+  <script async custom-element="amp-list" src="https://cdn.ampproject.org/v0/amp-list-0.1.js"></script>
+  <!-- ... and the `amp-mustache` component in the header -->
+  <script async custom-template="amp-mustache" src="https://cdn.ampproject.org/v0/amp-mustache-0.1.js"></script>
+  <link rel="canonical" href="https://ampbyexample.com/components/amp-list/">
+  <meta name="viewport" content="width=device-width,minimum-scale=1,initial-scale=1">
+  <style amp-boilerplate>body{-webkit-animation:-amp-start 8s steps(1,end) 0s 1 normal both;-moz-animation:-amp-start 8s steps(1,end) 0s 1 normal both;-ms-animation:-amp-start 8s steps(1,end) 0s 1 normal both;animation:-amp-start 8s steps(1,end) 0s 1 normal both}@-webkit-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-moz-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-ms-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-o-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}</style><noscript><style amp-boilerplate>body{-webkit-animation:none;-moz-animation:none;-ms-animation:none;animation:none}</style></noscript>
+  <style amp-custom>
+  .amp-list-wrapper {
+    display: flex;
+    flex-direction: column;
+    height: 600px;
+  }
+  .amp-list-more-button {
+    height: 20px;
+  }
+  amp-list {
+    margin-left: 16px;
+  }
+  .list-overflow {
+    width: 160px;
+    margin-left: auto;
+  }
+  </style>
+</head>
+<body>
+
+  <!-- ## Using a nested template -->
+  <!--
+  The `amp-list` content is provided by a JSON CORS endpoint, which is defined by the `src`
+  attribute. The URL's protocol must be HTTPS. The response must be a JSON object containing
+  an array property `items`, for example:
+  ```json
+  {
+    "items": [
+      {
+        "title": "amp-carousel",
+        "url": "https://ampbyexample.com/components/amp-carousel"
+      },
+      ...
+    ]
+  }
+  ```
+  The list content is rendered via an [amp-mustache template](https://www.ampproject.org/docs/reference/components/amp-mustache). The template can be specified either by id, or by using a nested element.
+  -->
+  <amp-state id="s" src="test-page-buffer-0.example.json" [src]="s.curr || 'test-page-buffer-0.example.json'">
+    <script type="application/json">
+      { "buffer": [], "items": [], "page": 0, "next": "test-page-1.example.json" }
+    </script>
+  </amp-state>
+
+  <div class="amp-list-wrapper">
+    <amp-list width="auto" layout="flex-item" src="test-page-buffer-0.example.json" [src]="s ? s.items.concat(s.buffer) : 'test-page-buffer-0.example.json'" class="m1">
+      <template type="amp-mustache" id="amp-template-id">
+        <div><a href="{{url}}">{{title}}</a></div>
+      </template>
+    </amp-list>
+
+    <button class="amp-list-more-button" [hidden]="!s.next" on="tap:AMP.setState({s: {buffer: [], curr: s.next, items: s.items.concat(s.buffer), next: null}})">more</button>
+  </div>
+
+</body>
+</html>

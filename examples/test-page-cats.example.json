@@ -1,0 +1,21 @@
+{
+  "cats": [
+    {
+      "title": "Trek the Kalalau Trail",
+      "url": "http://www.kauaiexplorer.com/hiking_kauai/hanakapiai_hike.php"
+    },
+    {
+      "title": "Run the Kauai Marathon",
+      "url": "https://www.thekauaimarathon.com/"
+    },
+    {
+      "title": "Discover the secret beach",
+      "url": "http://www.kauaibeachscoop.com/north-shore/secret-kauapea-beach"
+    },
+    {
+      "title": "Tube down a mountain",
+      "url": "http://kauaibackcountry.com/tubing/"
+    }
+  ],
+  "next": "dogs"
+}

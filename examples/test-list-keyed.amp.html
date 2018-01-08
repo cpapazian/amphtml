@@ -1,0 +1,94 @@
+<!--
+  ## Introduction
+
+  The [`amp-list`](https://www.ampproject.org/docs/reference/components/amp-list) component fetches dynamic content from a CORS JSON endpoint and renders it using a supplied template. This is good for embedding a dynamic list of related articles.
+-->
+<!-- -->
+<!doctype html>
+<html ⚡>
+<head>
+  <meta charset="utf-8">
+  <script async src="https://cdn.ampproject.org/v0.js"></script>
+  <!-- ## Setup -->
+  <!-- Import the `amp-bind` component ... -->
+  <script async custom-element="amp-bind" src="https://cdn.ampproject.org/v0/amp-bind-0.1.js"></script>
+  <!-- Import the `amp-list` component ... -->
+  <script async custom-element="amp-list" src="https://cdn.ampproject.org/v0/amp-list-0.1.js"></script>
+  <!-- ... and the `amp-mustache` component in the header -->
+  <script async custom-template="amp-mustache" src="https://cdn.ampproject.org/v0/amp-mustache-0.1.js"></script>
+  <link rel="canonical" href="https://ampbyexample.com/components/amp-list/">
+  <meta name="viewport" content="width=device-width,minimum-scale=1,initial-scale=1">
+  <style amp-boilerplate>body{-webkit-animation:-amp-start 8s steps(1,end) 0s 1 normal both;-moz-animation:-amp-start 8s steps(1,end) 0s 1 normal both;-ms-animation:-amp-start 8s steps(1,end) 0s 1 normal both;animation:-amp-start 8s steps(1,end) 0s 1 normal both}@-webkit-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-moz-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-ms-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-o-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}</style><noscript><style amp-boilerplate>body{-webkit-animation:none;-moz-animation:none;-ms-animation:none;animation:none}</style></noscript>
+  <style amp-custom>
+  .amp-list-wrapper {
+    display: flex;
+    flex-direction: column;
+    height: 600px;
+  }
+  .amp-list-more-button {
+    height: 20px;
+  }
+  amp-list {
+    margin-left: 16px;
+  }
+  .list-overflow {
+    width: 160px;
+    margin-left: auto;
+  }
+  </style>
+</head>
+<body>
+
+  <!-- ## paging by concatenating a list of lists -->
+  <!--
+  The `amp-list` content is provided AMP state. Eact time a new page is requested, a new
+  bookmark is added to a list. The AMP state src is bound to the JSON CORS endpoint
+  for the last bookmark and new data is returned into AMP state at the key represented
+  by the bookmark. After a few pages are fetched, AMP state may look similar to:
+  ```json
+  {
+    "bookmarks": ["alpaca", "bison", "cats"],
+    "alpaca": [
+      {
+        "title": "amp-carousel",
+        "url": "https://ampbyexample.com/components/amp-carousel"
+      },
+      ...
+    ],
+    "bison": [
+      {
+        "title": "amp-carousel",
+        "url": "https://ampbyexample.com/components/amp-carousel"
+      },
+      ...
+    ],
+    "cats": [
+      {
+        "title": "amp-carousel",
+        "url": "https://ampbyexample.com/components/amp-carousel"
+      },
+      ...
+    ],
+  }
+  ```
+  The list content is rendered via an [amp-mustache template](https://www.ampproject.org/docs/reference/components/amp-mustache). The template can be specified either by id, or by using a nested element.
+  -->
+  <amp-bind-macro id="add" expression="a + b" arguments="a, b"></amp-bind-macro>
+  <amp-state id="s" src="#" [src]="(s.bookmarks.length > 0) ? 'test-page-' + s.bookmarks[s.bookmarks.length - 1] + '.example.json' : []">
+    <script type="application/json">
+      { "bookmarks": [], "next": "bison" }
+    </script>
+  </amp-state>
+
+  <div class="amp-list-wrapper">
+    <amp-list width="auto" layout="flex-item" src="#" [src]="(s.bookmarks.length > 0) ? s.bookmarks.map((b, idx) => s[b] || []).reduce((l, r) => l.concat(r)) : []" class="m1">
+      <template type="amp-mustache" id="amp-template-id">
+        <div><a href="{{url}}">{{title}}</a></div>
+      </template>
+    </amp-list>
+
+    <button class="amp-list-more-button" [hidden]="!s.next" on="tap:AMP.setState({s: {bookmarks: s.bookmarks.concat(s.next), next: null}})">more</button>
+  </div>
+
+</body>
+</html>

@@ -1,0 +1,23 @@
+{
+  "curr": "test-page-1.example.json",
+  "buffer": [
+    {
+      "title": "Try the Local Rum",
+      "url": "http://koloarum.com/distillery/?age-verified=beb96013dc"
+    },
+    {
+      "title": "Hike the Waimea Canyon",
+      "url": "https://hawaiistateparks.org/parks/kauai/koke%CA%BBe-state-park/"
+    },
+    {
+      "title": "Chill out at Hanalei Bay",
+      "url": "http://www.kauai.com/hanalei-pavilion"
+    },
+    {
+      "title": "Pretend you’re in Jurassic Park at the Na Pali Coast",
+      "url": "https://hawaiistateparks.org/parks/kauai/polihale-state-park/"
+    }
+  ],
+  "page": 1,
+  "next": "test-page-buffer-2.example.json"
+}

@@ -1,0 +1,18 @@
+{
+  "curr": "test-page-3.example.json",
+  "buffer": [
+    {
+      "title": "See the Sleeping Giant",
+      "url": "https://www.alltrails.com/trail/us/hawaii/sleeping-giant-via-nounou-mountain-trail"
+    },
+    {
+      "title": "Hear the Ancient Lizard at the Spouting Horn",
+      "url": "https://www.gohawaii.com/kauai/regions-neighborhoods/south-shore/spouting-horn/"
+    },
+    {
+      "title": "Eat shave ice",
+      "url": "http://www.wailuashaveice.com/"
+    }
+  ],
+  "page": 3
+}

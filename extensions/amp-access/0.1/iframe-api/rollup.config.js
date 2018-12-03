@@ -34,6 +34,6 @@ export default {
     cleanup(),
   ],
   external: [
-    path.resolve('../../../../src/polyfills.js'),
+    // path.resolve('../../../../src/polyfills.js'),
   ],
 };

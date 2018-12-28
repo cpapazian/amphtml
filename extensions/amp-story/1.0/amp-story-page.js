@@ -632,6 +632,22 @@ export class AmpStoryPage extends AMP.BaseElement {
     }
   }
 
+  setPrev(isPrev = false) {
+    if (isPrev) {
+      this.element.setAttribute('prev', '');
+    } else {
+      this.element.removeAttribute('prev');
+    }
+  }
+
+  setNext(isNext = false) {
+    if (isNext) {
+      this.element.setAttribute('next', '');
+    } else {
+      this.element.removeAttribute('next');
+    }
+  }
+
   /**
    * @return {boolean} Whether this page is currently active.
    */

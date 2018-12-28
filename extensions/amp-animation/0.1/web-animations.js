@@ -254,7 +254,7 @@ export class AnimationWorkletRunner extends AnimationRunner {
         if (isVisible) {
           effect.localTime = currentTime;
         }
-  
+
       }
     });
     `;

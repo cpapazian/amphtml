@@ -114,9 +114,10 @@ class AnimationRunner {
      * @private @const {!Promise<
      *    !../../amp-animation/0.1/web-animations.WebAnimationRunner>}
      */
-    this.runnerPromise_ = this.getWebAnimationDef_().then(webAnimDef =>
-      webAnimationBuilderPromise.then(builder =>
-        builder.createRunner(webAnimDef)));
+    this.runnerPromise_ = this.getWebAnimationDef_().then(webAnimDef => {
+      return webAnimationBuilderPromise.then(builder =>
+        builder.createRunner(webAnimDef));
+    });
 
     /** @private @const {!Promise<!Object<string, *>>} */
     this.firstFrameProps_ =

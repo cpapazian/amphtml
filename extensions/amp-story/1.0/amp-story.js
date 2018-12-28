@@ -34,7 +34,12 @@ import {
   getStoreService,
 } from './amp-story-store-service';
 import {ActionTrust} from '../../../src/action-constants';
-import {AdvancementConfig, TapNavigationDirection} from './page-advancement';
+import {
+  AdvancementConfig,
+  TapNavigationDirection,
+  SwipeNavigationDirection,
+  SwipeNavigationState,
+} from './page-advancement';
 import {AmpStoryAccess} from './amp-story-access';
 import {AmpStoryAnalytics} from './analytics';
 import {AmpStoryBackground} from './background';
@@ -81,6 +86,7 @@ import {
   px,
   resetStyles,
   setImportantStyles,
+  setStyles,
   toggle,
 } from '../../../src/style';
 import {debounce} from '../../../src/utils/rate-limit';
@@ -346,6 +352,9 @@ export class AmpStory extends AMP.BaseElement {
 
     registerServiceBuilder(this.win, 'localization',
         () => this.localizationService_);
+
+    /** @private @const */
+    this.builderPromise_ = this.createAnimationBuilderPromise_();
   }
 
   /** @override */
@@ -561,6 +570,21 @@ export class AmpStory extends AMP.BaseElement {
         direction => {
           this.performTapNavigation_(direction);
         });
+
+    this.advancement_.addOnSwipeNavigationListener(
+        (state, direction, deltaY) => {
+          this.performSwipeNavigation_(state, direction, deltaY);
+        });
+
+    // this.advancement_.addOnSwipePreviewListener(
+    //     deltaY => {
+    //       this.performSwipePreview_(deltaY);
+    //     });
+    //
+    // this.advancement_.addOnSwipeCancelistener(
+    //     () => {
+    //       this.performSwipeCancel_();
+    //     });
 
     this.element.addEventListener(EventType.DISPATCH_ACTION, e => {
       if (!getMode().test) {
@@ -979,6 +1003,7 @@ export class AmpStory extends AMP.BaseElement {
    * @private
    */
   performTapNavigation_(direction) {
+    console.log('errp', direction);
     if (this.storeService_.get(StateProperty.UI_STATE) ===
         UIType.DESKTOP_PANELS) {
       this.next_();
@@ -989,6 +1014,161 @@ export class AmpStory extends AMP.BaseElement {
       this.next_();
     } else if (direction === TapNavigationDirection.PREVIOUS) {
       this.previous_();
+    }
+  }
+
+  // TODO: use amp-story animation? or something else ...
+  createAnimationBuilderPromise_() {
+    const ampdoc = this.getAmpDoc();
+    return Services.extensionsFor(ampdoc.win)
+        .installExtensionForDoc(ampdoc, 'amp-animation')
+        .then(() => Services.webAnimationServiceFor(ampdoc))
+        .then(webAnimationService => webAnimationService.createBuilder());
+  }
+
+  /**
+   * @param {Element} page ...
+   * @param {number} direction ...
+   * @private
+   */
+  getSwipeNavigationAnimationRunnerPromise_(page, direction) {
+    // console.log(direction, SwipeNavigationDirection.PREVIOUS, SwipeNavigationDirection.NEXT);
+    // const endPct = direction === SwipeNavigationDirection.PREVIOUS
+    //   ? '100%' : '-100%';
+
+    if (direction === SwipeNavigationDirection.PREVIOUS) {
+      const previousId = page.getPreviousPageId();
+      if (!previousId) {
+        return null;
+      }
+      const previousPage = this.getPageById(previousId);
+
+      const ref = [
+        {
+          // keyframes: 'i-amphtml-swipe-next',
+          keyframes: [
+            {transform: 'translateY(0)'},
+            {transform: 'translateY(100%)'},
+          ],
+          duration: '1000ms',
+          easing: 'ease-in-out',
+          fill: 'both',
+          target: page.element,
+        },
+        {
+          // keyframes: 'i-amphtml-swipe-prev',
+          keyframes: [
+            {transform: 'translateY(0)'},
+            {transform: 'translateY(-100%)'},
+          ],
+          direction: 'reverse',
+          duration: '1000ms',
+          easing: 'ease-in-out',
+          fill: 'both',
+          target: previousPage.element,
+        },
+      ];
+      return this.builderPromise_.then(builder =>
+        builder.createRunner(ref));
+    } else {
+      const nextId = page.getNextPageId();
+      if (!nextId) {
+        return null;
+      }
+      const nextPage = this.getPageById(nextId);
+
+      const ref = [
+        {
+          // keyframes: 'i-amphtml-swipe-prev',
+          keyframes: [
+            {transform: 'translateY(0)'},
+            {transform: 'translateY(-100%)'},
+          ],
+          duration: '1000ms',
+          easing: 'ease-in-out',
+          fill: 'both',
+          target: page.element,
+        },
+        {
+          // keyframes: 'i-amphtml-swipe-next',
+          keyframes: [
+            {transform: 'translateY(0)'},
+            {transform: 'translateY(100%)'},
+          ],
+          direction: 'reverse',
+          duration: '1000ms',
+          easing: 'ease-in-out',
+          fill: 'both',
+          target: nextPage.element,
+        },
+      ];
+      return this.builderPromise_.then(builder =>
+        builder.createRunner(ref));
+    }
+  }
+
+  /**
+   * @param {number} state ...
+   * @param {number} direction ...
+   * @param {number} deltaY Offset of swipe gesture.
+   * @private
+   */
+  performSwipeNavigation_(state, direction, deltaY) {
+    if (state === SwipeNavigationState.START) {
+      // set up transition/animation
+      // NOTE: we can't actually set up the animation, b/c deltaY is 0 at
+      // swipe start, so we don't know which direction we are swiping
+    } else if (state === SwipeNavigationState.CANCEL) {
+      // rewind navigation
+      if (this.swipeNavigationAnimationRunnerPromise_) {
+        this.swipeNavigationAnimationRunnerPromise_.then(runner => {
+          runner.reverse();
+          runner.start();
+          // dispose of animation when rewind is complete
+          runner.onPlayStateChanged(() => {
+            this.swipeNavigationAnimationRunnerPromise_ = null;
+          });
+        });
+      }
+    } else if (state === SwipeNavigationState.NAVIGATE) {
+      // perform navigation
+      if (this.swipeNavigationAnimationRunnerPromise_) {
+        this.swipeNavigationAnimationRunnerPromise_.then(runner => {
+          runner.start();
+          // dispose of animation before navigating to next page
+          runner.onPlayStateChanged(() => {
+            this.swipeNavigationAnimationRunnerPromise_ = null;
+            if (direction === SwipeNavigationDirection.NEXT) {
+              this.next_();
+            } else if (direction === SwipeNavigationDirection.PREVIOUS) {
+              this.previous_();
+            }
+          });
+        });
+      }
+    } else {
+      if (state === SwipeNavigationState.REVERSE) {
+        this.swipeNavigationAnimationRunnerPromise_ = null;
+      }
+      if (!this.swipeNavigationAnimationRunnerPromise_) {
+        this.swipeNavigationAnimationRunnerPromise_ =
+          this.getSwipeNavigationAnimationRunnerPromise_(
+              this.activePage_, direction);
+
+        if (this.swipeNavigationAnimationRunnerPromise_) {
+          this.swipeNavigationAnimationRunnerPromise_.then(
+              runner => runner.init());
+        }
+      }
+
+      if (this.swipeNavigationAnimationRunnerPromise_) {
+        // update animation position/transformY offset
+        const height = this.activePage_.element./*OK*/clientHeight;
+        const seekPct = Math.abs(deltaY) / height;
+        this.swipeNavigationAnimationRunnerPromise_.then(runner => {
+          runner.seekToPercent(seekPct);
+        });
+      }
     }
   }
 
@@ -1738,11 +1918,16 @@ export class AmpStory extends AMP.BaseElement {
 
     const pagesByDistance = this.getPagesByDistance_();
 
+    const prevPageId = this.activePage_.getPreviousPageId();
+    const nextPageId = this.activePage_.getNextPageId(false);
+
     this.mutateElement(() => {
       pagesByDistance.forEach((pageIds, distance) => {
         pageIds.forEach(pageId => {
           const page = this.getPageById(pageId);
           page.setDistance(distance);
+          page.setPrev(prevPageId && page.element.id === prevPageId);
+          page.setNext(nextPageId && page.element.id === nextPageId);
         });
       });
     });

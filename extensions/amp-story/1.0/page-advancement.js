@@ -27,6 +27,9 @@ import {dev, user} from '../../../src/log';
 import {hasTapAction, timeStrToMillis} from './utils';
 import {listenOnce} from '../../../src/event-helper';
 
+import {Gestures} from '../../../src/gesture';
+import {SwipeYRecognizer} from '../../../src/gesture-recognizers';
+
 /** @private @const {number} */
 const HOLD_TOUCH_THRESHOLD_MS = 500;
 
@@ -41,6 +44,21 @@ export const POLL_INTERVAL_MS = 300;
 
 /** @const @enum */
 export const TapNavigationDirection = {
+  'NEXT': 1,
+  'PREVIOUS': 2,
+};
+
+/** @const @enum */
+export const SwipeNavigationState = {
+  'START': 1,
+  'DRAG': 2,
+  'REVERSE': 3,
+  'CANCEL': 4,
+  'NAVIGATE': 5,
+};
+
+/** @const @enum */
+export const SwipeNavigationDirection = {
   'NEXT': 1,
   'PREVIOUS': 2,
 };
@@ -66,6 +84,9 @@ export class AdvancementConfig {
 
     /** @private @const {!Array<function(number)>} */
     this.tapNavigationListeners_ = [];
+
+    /** @private @const {!Array<function(number, boolean)>} */
+    this.swipeNavigationListeners_ = [];
 
     /** @private {boolean} */
     this.isRunning_ = false;
@@ -103,6 +124,14 @@ export class AdvancementConfig {
    */
   addOnTapNavigationListener(onTapNavigationListener) {
     this.tapNavigationListeners_.push(onTapNavigationListener);
+  }
+
+  /**
+   * @param {function(number)} onSwipeNavigationListener A function that handles when a
+   * navigation listener to be fired.
+   */
+  addOnSwipeNavigationListener(onSwipeNavigationListener) {
+    this.swipeNavigationListeners_.push(onSwipeNavigationListener);
   }
 
   /**
@@ -168,6 +197,18 @@ export class AdvancementConfig {
   }
 
   /**
+   * @param {number} state ...
+   * @param {number} direction ...
+   * @param {number} deltaY ...
+   * @protected
+   */
+  onSwipeNavigation(state, direction, deltaY) {
+    this.swipeNavigationListeners_.forEach(navigationListener => {
+      navigationListener(state, direction, deltaY);
+    });
+  }
+
+  /**
    * Provides an AdvancementConfig object for the specified amp-story-page.
    * @param {!./amp-story-page.AmpStoryPage|!./amp-story.AmpStory} element
    * @return {!AdvancementConfig | !ManualAdvancement | !MultipleAdvancementConfig}
@@ -223,6 +264,13 @@ class MultipleAdvancementConfig extends AdvancementConfig {
   addOnTapNavigationListener(onTapNavigationListener) {
     this.advancementModes_.forEach(advancementMode => {
       advancementMode.addOnTapNavigationListener(onTapNavigationListener);
+    });
+  }
+
+  /** @override */
+  addOnSwipeNavigationListener(onSwipeNavigationListener) {
+    this.advancementModes_.forEach(advancementMode => {
+      advancementMode.addOnSwipeNavigationListener(onSwipeNavigationListener);
     });
   }
 
@@ -293,6 +341,65 @@ class ManualAdvancement extends AdvancementConfig {
       this.storeService_ =
         getStoreService(element.ownerDocument.defaultView);
     }
+  }
+
+  /** @override */
+  getProgress() {
+    return 1.0;
+  }
+
+  /**
+   * Gets an instance of ManualAdvancement based on the HTML tag of the element.
+   * @param {!Window} win
+   * @param {!Element} rootEl
+   * @return {?AdvancementConfig} An AdvancementConfig, only if the rootEl is
+   *                              an amp-story tag.
+   */
+  static fromElement(win, rootEl) {
+    if (rootEl.tagName.toLowerCase() !== 'amp-story') {
+      return null;
+    }
+    return new ManualSwipeAdvancement(win, rootEl);
+    // return new ManualTapAdvancement(win, rootEl);
+  }
+}
+
+
+/**
+ * Always provides a progress of 1.0.  Advances when the user taps the
+ * corresponding section, depending on language settings.
+ */
+class ManualTapAdvancement extends AdvancementConfig {
+  /**
+   * @param {!Window} win The Window object.
+   * @param {!Element} element The element that, when clicked, can cause
+   *     advancing to the next page or going back to the previous.
+   */
+  constructor(win, element) {
+    super();
+
+    /** @private @const {!Element} */
+    this.element_ = element;
+
+    /** @private {number|string|null} */
+    this.timeoutId_ = null;
+
+    /** @private @const {!../../../src/service/timer-impl.Timer} */
+    this.timer_ = Services.timerFor(win);
+
+    /** @private {?number} Last touchstart event's timestamp */
+    this.touchstartTimestamp_ = null;
+
+    /** @private @const {!Window} */
+    this.win_ = win;
+
+    this.startListening_();
+
+    if (element.ownerDocument.defaultView) {
+      /** @private @const {!./amp-story-store-service.AmpStoryStoreService} */
+      this.storeService_ =
+        getStoreService(element.ownerDocument.defaultView);
+    }
 
     const rtlState = this.storeService_.get(StateProperty.RTL_STATE);
     this.sections_ = {
@@ -323,6 +430,7 @@ class ManualAdvancement extends AdvancementConfig {
    * @private
    */
   startListening_() {
+    console.log(this.element_.element);
     this.element_
         .addEventListener('touchstart', this.onTouchstart_.bind(this), true);
     this.element_
@@ -455,6 +563,7 @@ class ManualAdvancement extends AdvancementConfig {
       // event and skip navigation.
       event.preventDefault();
       this.storeService_.dispatch(Action.TOGGLE_TOOLTIP, target);
+      console.log('errp');
       return;
     }
 
@@ -464,6 +573,11 @@ class ManualAdvancement extends AdvancementConfig {
       !this.isAmpStoryPageDescendant_(event)) {
       // If the system doesn't need to handle this click, then we can simply
       // return and let the event propagate as it would have otherwise.
+      console.log(!this.isRunning());
+      console.log(!this.isNavigationalClick_(event));
+      console.log(this.isProtectedTarget_(event));
+      console.log(!this.isAmpStoryPageDescendant_(event));
+      console.log('derp');
       return;
     }
 
@@ -481,6 +595,7 @@ class ManualAdvancement extends AdvancementConfig {
       width: pageRect.width,
       clickEventX: event.pageX,
     };
+    console.log(page);
 
     this.onTapNavigation(this.getTapDirection_(page));
   }
@@ -516,6 +631,115 @@ class ManualAdvancement extends AdvancementConfig {
     return new ManualAdvancement(win, rootEl);
   }
 }
+
+
+/**
+ * Always provides a progress of 1.0.  Advances when the user taps the
+ * corresponding section, depending on language settings.
+ */
+class ManualSwipeAdvancement extends AdvancementConfig {
+  /**
+   * @param {!Window} win The Window object.
+   * @param {!Element} element The element that, when clicked, can cause
+   *     advancing to the next page or going back to the previous.
+   */
+  constructor(win, element) {
+    super();
+
+    /** @private @const {!Element} */
+    this.element_ = element;
+
+    /** @private {number|string|null} */
+    this.timeoutId_ = null;
+
+    /** @private @const {!../../../src/service/timer-impl.Timer} */
+    this.timer_ = Services.timerFor(win);
+
+    /** @private {?number} Last touchstart event's timestamp */
+    this.touchstartTimestamp_ = null;
+
+    /** @private @const {!Window} */
+    this.win_ = win;
+
+    /** @private {!Element} */
+    this.page_ = null;
+
+    this.startListening_();
+
+    if (element.ownerDocument.defaultView) {
+      /** @private @const {!./amp-story-store-service.AmpStoryStoreService} */
+      this.storeService_ =
+        getStoreService(element.ownerDocument.defaultView);
+    }
+
+  }
+
+  /**
+   * Binds the event listeners.
+   * @private
+   */
+  startListening_() {
+    const gestures = Gestures.get(dev().assertElement(this.element_));
+    gestures.onGesture(SwipeYRecognizer, e => {
+      // console.log(e.data);
+
+      if (e.data.first) {
+        this.onSwipeNavigation(SwipeNavigationState.START);
+      } else if (e.data.last) {
+        // TODO: tune this logic, using velocity, as well as deltaY, etc.
+        if (Math.abs(e.data.deltaY) > 200) {
+          this.onSwipeNavigation(
+              SwipeNavigationState.NAVIGATE, this.swipeDirection_);
+        } else {
+          this.onSwipeNavigation(
+              SwipeNavigationState.CANCEL, this.swipeDirection_);
+        }
+        this.swipeDirection_ = null;
+      } else {
+        const direction = e.data.deltaY > 0
+          ? SwipeNavigationDirection.PREVIOUS : SwipeNavigationDirection.NEXT;
+        if (this.swipeDirection_ && this.swipeDirection_ !== direction) {
+          this.onSwipeNavigation(
+              SwipeNavigationState.REVERSE, direction, e.data.deltaY);
+        } else {
+          this.onSwipeNavigation(
+              SwipeNavigationState.DRAG, direction, e.data.deltaY);
+        }
+        this.swipeDirection_ = direction;
+      }
+    });
+  }
+
+  // onMoveRelease_(deltaY) {
+  //   // console.log(deltaY);
+  //   if (Math.abs(deltaY) > 10) {
+  //     this.onSwipeNavigation(deltaY);
+  //   }
+  // }
+  //
+  // getSwipeDirection_(deltaY) {
+  //   if (deltaY > 0) {
+  //     return TapNavigationDirection.PREVIOUS;
+  //   } else if (deltaY < 0) {
+  //     return TapNavigationDirection.NEXT;
+  //   }
+  // }
+
+  /**
+   * Gets an instance of ManualAdvancement based on the HTML tag of the element.
+   * @param {!Window} win
+   * @param {!Element} rootEl
+   * @return {?AdvancementConfig} An AdvancementConfig, only if the rootEl is
+   *                              an amp-story tag.
+   */
+  // static fromElement(win, rootEl) {
+  //   if (rootEl.tagName.toLowerCase() !== 'amp-story') {
+  //     return null;
+  //   }
+  //   return new ManualAdvancement(win, rootEl);
+  // }
+}
+
 
 /**
  * Provides progress and advancement based on a fixed duration of time,
